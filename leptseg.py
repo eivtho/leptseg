@@ -409,94 +409,96 @@ def writeHocr(block,fhocr):
     hfile.write(bytearray(block))
     hfile.close()
 
-parser = argparse.ArgumentParser()
-req_named = parser.add_argument_group("required named arguments")
-req_named.add_argument("-f","--file", 
-    help="input image, for example: imgs/my_image.tif")
-req_named.add_argument("-sd","--skipdefault", default=False, action="store_true",
-    help="do not use default Tesseract for regions left after segmentation")
-req_named.add_argument("-ft","--finishtext", default=False, action="store_true",
-    help="use text detection for regions left after columns")
-req_named.add_argument("-l","--lang", default="eng",
-    help="language for Tesseract (defaults to \"eng\")")
-req_named.add_argument("-n","--nobinarize", default=False, action="store_true",
-    help="skip binarization step for image")
-req_named.add_argument("-i","--image", default=False, action="store_true",
-    help="image only, no ocr (useful for planning)")
-req_named.add_argument("-t","--text", default=False, action="store_true", 
-    help="use text detection instead of column detection")
-req_named.add_argument("-d","--debug", default=False, action="store_true",
-    help="create images for each step of Leptonica segmenting")
-req_named.add_argument("-e","--edge", default=5, type=int, 
-    help="edge/margin to add to crop")
-req_named.add_argument("-r","--erode", default=0, type=int, 
-    help="erode black text on image")
-req_named.add_argument("-s","--save", default=False, action="store_true",
-    help="save binarization image from Leptonica step")
-req_named.add_argument("-m","--missing", default=False, action="store_true",
-    help="fill in missing block(s)")
-req_named.add_argument("-mw","--minwidth", default=50, type=int, 
-    help="minimum width for region")
-req_named.add_argument("-mh","--minheight", default=10, type=int, 
-    help="minimum height for region")
 
-args = parser.parse_args()
+if __name__ == '__file__':
+    parser = argparse.ArgumentParser()
+    req_named = parser.add_argument_group("required named arguments")
+    req_named.add_argument("-f","--file",
+        help="input image, for example: imgs/my_image.tif")
+    req_named.add_argument("-sd","--skipdefault", default=False, action="store_true",
+        help="do not use default Tesseract for regions left after segmentation")
+    req_named.add_argument("-ft","--finishtext", default=False, action="store_true",
+        help="use text detection for regions left after columns")
+    req_named.add_argument("-l","--lang", default="eng",
+        help="language for Tesseract (defaults to \"eng\")")
+    req_named.add_argument("-n","--nobinarize", default=False, action="store_true",
+        help="skip binarization step for image")
+    req_named.add_argument("-i","--image", default=False, action="store_true",
+        help="image only, no ocr (useful for planning)")
+    req_named.add_argument("-t","--text", default=False, action="store_true",
+        help="use text detection instead of column detection")
+    req_named.add_argument("-d","--debug", default=False, action="store_true",
+        help="create images for each step of Leptonica segmenting")
+    req_named.add_argument("-e","--edge", default=5, type=int,
+        help="edge/margin to add to crop")
+    req_named.add_argument("-r","--erode", default=0, type=int,
+        help="erode black text on image")
+    req_named.add_argument("-s","--save", default=False, action="store_true",
+        help="save binarization image from Leptonica step")
+    req_named.add_argument("-m","--missing", default=False, action="store_true",
+        help="fill in missing block(s)")
+    req_named.add_argument("-mw","--minwidth", default=50, type=int,
+        help="minimum width for region")
+    req_named.add_argument("-mh","--minheight", default=10, type=int,
+        help="minimum height for region")
 
-if args.file == None:
-    print("missing input image, use '-h' parameter for syntax")
-    sys.exit()
+    args = parser.parse_args()
 
-#make boolean flags C-friendly for ctypes
-b_flag = 1 #binarize by default
-c_flag = 1 #column regions by default
-d_flag = 0 #no debug by default
-f_flag = 0 #no file save by default
+    if args.file == None:
+        print("missing input image, use '-h' parameter for syntax")
+        sys.exit()
 
-if args.nobinarize:
-    b_flag = 0
-if args.text:
-    c_flag = 0
-if args.debug:
-    d_flag = 1
-if args.save:
-    f_flag = 1
+    #make boolean flags C-friendly for ctypes
+    b_flag = 1 #binarize by default
+    c_flag = 1 #column regions by default
+    d_flag = 0 #no debug by default
+    f_flag = 0 #no file save by default
 
-img_base = args.file.split(".")[0]
-img = Image.open(args.file)
-imgc = img.copy()
-w, h = img.size
-imgc = imgc.convert("RGB")
-rimg = ImageDraw.Draw(imgc)
+    if args.nobinarize:
+        b_flag = 0
+    if args.text:
+        c_flag = 0
+    if args.debug:
+        d_flag = 1
+    if args.save:
+        f_flag = 1
 
-regions = []
-tmp_path = tempfile.mkdtemp()
-runThruSegProcess(args.file,args.erode,img_base,
-    b_flag,c_flag,d_flag,f_flag,
-    args.missing,args.minwidth,args.minheight,args.edge,args.image,
-    tmp_path)
+    img_base = args.file.split(".")[0]
+    img = Image.open(args.file)
+    imgc = img.copy()
+    w, h = img.size
+    imgc = imgc.convert("RGB")
+    rimg = ImageDraw.Draw(imgc)
 
-img.save(img_base + "_final.jpg")
-if not args.text and not args.missing:
-    if args.finishtext:
-        print("!") 
-        regions = []
-        runThruSegProcess(img_base + "_final.jpg",0,img_base,
-             b_flag,0,d_flag,f_flag,False,
-             args.minwidth,args.minheight,args.edge,args.image,
-             tmp_path)
-        img.save(img_base + "_final.jpg") #reflect text processing
-    if not args.skipdefault and not args.image:
-        dimg = "%s/%08d_%08d_%08d_%08d.png" % (tmp_path,0,0,0,0)
-        himg = "%s/%08d_%08d_%08d_%08d.hocr" % (tmp_path,0,0,0,0)
-        img.save(dimg)
-        block = pytesseract.image_to_pdf_or_hocr(dimg,
-            timeout=TIMEOUT,
-            extension="hocr")
-        writeHocr(block,himg)
+    regions = []
+    tmp_path = tempfile.mkdtemp()
+    runThruSegProcess(args.file,args.erode,img_base,
+        b_flag,c_flag,d_flag,f_flag,
+        args.missing,args.minwidth,args.minheight,args.edge,args.image,
+        tmp_path)
 
-if os.path.exists(tmp_path) and not args.image:
-    mergeHocr(tmp_path + "/*.hocr",img_base + ".hocr",args.file)
-    shutil.rmtree(tmp_path) #clean up tmp directory
+    img.save(img_base + "_final.jpg")
+    if not args.text and not args.missing:
+        if args.finishtext:
+            print("!")
+            regions = []
+            runThruSegProcess(img_base + "_final.jpg",0,img_base,
+                 b_flag,0,d_flag,f_flag,False,
+                 args.minwidth,args.minheight,args.edge,args.image,
+                 tmp_path)
+            img.save(img_base + "_final.jpg") #reflect text processing
+        if not args.skipdefault and not args.image:
+            dimg = "%s/%08d_%08d_%08d_%08d.png" % (tmp_path,0,0,0,0)
+            himg = "%s/%08d_%08d_%08d_%08d.hocr" % (tmp_path,0,0,0,0)
+            img.save(dimg)
+            block = pytesseract.image_to_pdf_or_hocr(dimg,
+                timeout=TIMEOUT,
+                extension="hocr")
+            writeHocr(block,himg)
 
-imgc.save(img_base + "_regions.jpg")
-print("!") #all done
+    if os.path.exists(tmp_path) and not args.image:
+        mergeHocr(tmp_path + "/*.hocr",img_base + ".hocr",args.file)
+        shutil.rmtree(tmp_path) #clean up tmp directory
+
+    imgc.save(img_base + "_regions.jpg")
+    print("!") #all done
