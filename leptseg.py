@@ -334,7 +334,7 @@ def mergeHocr(hocr_set, hocr_file, img_file):
 
 # run through region identification
 def runThruSegProcess(infile, erode, ibase, b_flag, c_flag, d_flag, f_flag,
-                      missing, minw, minh, edge, image_only, tmp_path):
+                      missing, minw, minh, edge, image_only, tmp_path, lang):
     global regions
     global img, imgc, rimg
 
@@ -392,7 +392,7 @@ def runThruSegProcess(infile, erode, ibase, b_flag, c_flag, d_flag, f_flag,
 
             # make sure source image exists
             if os.path.exists(tf_img) and not image_only:
-                block = pytesseract.image_to_pdf_or_hocr(tf_img, timeout=TIMEOUT,
+                block = pytesseract.image_to_pdf_or_hocr(tf_img, lang=lang, timeout=TIMEOUT,
                                                          config=TESSERACT_CONFIG,
                                                          extension="hocr")
                 writeHocr(block, tf_hocr)
@@ -492,7 +492,7 @@ if __name__ == '__main__':
     runThruSegProcess(args.file, args.erode, img_base,
                       b_flag, c_flag, d_flag, f_flag,
                       args.missing, args.minwidth, args.minheight, args.edge, args.image,
-                      tmp_path)
+                      tmp_path, args.lang)
 
     img.save(img_base + "_final.jpg")
     if not args.text and not args.missing:
@@ -502,13 +502,14 @@ if __name__ == '__main__':
             runThruSegProcess(img_base + "_final.jpg", 0, img_base,
                               b_flag, 0, d_flag, f_flag, False,
                               args.minwidth, args.minheight, args.edge, args.image,
-                              tmp_path)
+                              tmp_path, args.lang)
             img.save(img_base + "_final.jpg")  # reflect text processing
         if not args.skipdefault and not args.image:
             dimg = "%s/%08d_%08d_%08d_%08d.png" % (tmp_path, 0, 0, 0, 0)
             himg = "%s/%08d_%08d_%08d_%08d.hocr" % (tmp_path, 0, 0, 0, 0)
             img.save(dimg)
             block = pytesseract.image_to_pdf_or_hocr(dimg,
+                                                     lang=args.lang,
                                                      timeout=TIMEOUT,
                                                      extension="hocr")
             writeHocr(block, himg)
